@@ -1,6 +1,11 @@
 import boto3
+import botocore.exceptions
+
 
 DYNAMODB_HOST = 'http://localhost:4569'
+LAMBDA_HOST = 'http://localhost:4574'
+
+LAMBDA_HANDLER_SOURCE_FILE_NAME = 'lambda_f.zip'
 
 
 def prepare_dynamodb_table():
@@ -44,3 +49,29 @@ def prepare_dynamodb_table():
     print('table has been created')
 
     return stream_arn
+
+
+def create_lambda_function():
+    lambda_client = boto3.client(
+        'lambda',
+        endpoint_url=LAMBDA_HOST,
+        region_name='ap-northeast-2',
+        aws_access_key_id='foo', aws_secret_access_key='bar'
+    )
+
+    try:
+        response = lambda_client.create_function(
+            FunctionName='user-indexer',
+            Runtime='python3.6',
+            Code={'S3Bucket': 'local-lambda-function-bucket', 'S3Key': LAMBDA_HANDLER_SOURCE_FILE_NAME},
+            Role='role',
+            Handler='handler.lambda_handler'
+        )
+    except botocore.exceptions.ClientError as e:
+        response = lambda_client.get_function(
+            FunctionName='user-indexer'
+        )
+
+        return response['Configuration']
+
+    return response['FunctionArn']
