@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "tutorial-index-dynamodb-with-elasticsearch"
+version = "0.1.0"
+description = ""
+authors = ["sunghyunlee <sunghyunlee@mymusictaste.com>"]
+
+[tool.poetry.dependencies]
+python = "3.6.1"
+
+[tool.poetry.dev-dependencies]
+boto3 = "^1.11.14"
+elasticsearch-dsl = "^7.1.0"
+furl = "^2.1.0"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
