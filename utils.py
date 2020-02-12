@@ -4,6 +4,8 @@ import botocore.exceptions
 
 DYNAMODB_HOST = 'http://localhost:4569'
 LAMBDA_HOST = 'http://localhost:4574'
+ELASTICSEARCH_SERVICE_HOST = 'http://localhost:4578'
+
 
 LAMBDA_HANDLER_SOURCE_FILE_NAME = 'lambda_f.zip'
 
@@ -89,4 +91,17 @@ def create_event_source_mapping(stream_arn):
         EventSourceArn=stream_arn,
         FunctionName='user-indexer',
         Enabled=True,
+    )
+
+
+def create_elasticsearch_domain():
+    es_client = boto3.client(
+        'es',
+        endpoint_url=ELASTICSEARCH_SERVICE_HOST,
+        region_name='ap-northeast-2',
+        aws_access_key_id='foo', aws_secret_access_key='bar'
+    )
+
+    es_client.create_elasticsearch_domain(
+        DomainName="local-es"
     )
