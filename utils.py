@@ -75,3 +75,18 @@ def create_lambda_function():
         return response['Configuration']
 
     return response['FunctionArn']
+
+
+def create_event_source_mapping(stream_arn):
+    lambda_client = boto3.client(
+        'lambda',
+        endpoint_url=LAMBDA_HOST,
+        region_name='ap-northeast-2',
+        aws_access_key_id='foo', aws_secret_access_key='bar'
+    )
+
+    lambda_client.create_event_source_mapping(
+        EventSourceArn=stream_arn,
+        FunctionName='user-indexer',
+        Enabled=True,
+    )
