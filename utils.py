@@ -1,3 +1,7 @@
+import datetime
+import random
+import uuid
+
 import boto3
 import botocore.exceptions
 
@@ -104,4 +108,24 @@ def create_elasticsearch_domain():
 
     es_client.create_elasticsearch_domain(
         DomainName="local-es"
+    )
+
+
+def create_item_on_dynamodb():
+    dynamodb_client = boto3.client(
+        'dynamodb',
+        endpoint_url=DYNAMODB_HOST,
+        region_name='ap-northeast-2',
+        aws_access_key_id='foo', aws_secret_access_key='bar'
+    )
+
+    dynamodb_client.put_item(
+        TableName='local-user',
+        Item={
+            'id': {'S': uuid.uuid4().hex},
+            'username': {'S': f'test_username_{random.randint(0, 1000)}'},
+            'gender': {'S': random.choice(['M', 'F', 'SECRET'])},
+            'phone_number': {'S': f'+82101234{random.randint(0, 9999)}'},
+            'created_at': {'S': datetime.datetime.utcnow().isoformat()}
+        },
     )
