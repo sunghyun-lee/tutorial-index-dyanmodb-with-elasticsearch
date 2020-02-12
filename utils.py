@@ -1,6 +1,9 @@
 import datetime
+import os
 import random
 import uuid
+import zipfile
+from pprint import pprint
 
 import boto3
 import botocore.exceptions
@@ -39,8 +42,6 @@ def prepare_dynamodb_table():
         },
     )
 
-    print('waiting to finish creation of table')
-
     stream_arn = None
     while True:
         response = dynamodb_client.describe_table(
@@ -52,8 +53,6 @@ def prepare_dynamodb_table():
 
         stream_arn = response['Table']['LatestStreamArn']
         break
-    print('table has been created')
-
     return stream_arn
 
 
@@ -65,22 +64,26 @@ def create_lambda_function():
         aws_access_key_id='foo', aws_secret_access_key='bar'
     )
 
-    try:
-        response = lambda_client.create_function(
-            FunctionName='user-indexer',
-            Runtime='python3.6',
-            Code={'S3Bucket': 'local-lambda-function-bucket', 'S3Key': LAMBDA_HANDLER_SOURCE_FILE_NAME},
-            Role='role',
-            Handler='handler.lambda_handler'
-        )
-    except botocore.exceptions.ClientError as e:
-        response = lambda_client.get_function(
-            FunctionName='user-indexer'
-        )
+    # compress lambda function
+    with zipfile.ZipFile(LAMBDA_HANDLER_SOURCE_FILE_NAME, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk('local_lambda_handler/'):
+            for file in files:
+                zipf.write(os.path.join(root, file), f'{root.replace("local_lambda_handler", "")}/{file}')
 
-        return response['Configuration']
-
-    return response['FunctionArn']
+    # create lambda function with the compressed file
+    with open(LAMBDA_HANDLER_SOURCE_FILE_NAME, mode='rb', ) as fp:
+        try:
+            lambda_client.create_function(
+                FunctionName='user-indexer',
+                Runtime='python3.6',
+                Code={'ZipFile': fp.read()},
+                Role='whatever',
+                Handler='handler.lambda_handler'
+            )
+        except botocore.exceptions.ClientError:
+            lambda_client.get_function(
+                FunctionName='user-indexer'
+            )
 
 
 def create_event_source_mapping(stream_arn):
@@ -106,9 +109,12 @@ def create_elasticsearch_domain():
         aws_access_key_id='foo', aws_secret_access_key='bar'
     )
 
-    es_client.create_elasticsearch_domain(
-        DomainName="local-es"
-    )
+    try:
+        es_client.create_elasticsearch_domain(
+            DomainName="local-es"
+        )
+    except botocore.exceptions.ClientError as e:
+        print(f'ClientError while creating es domain: {str(e)}, possibly the domain has already been made.')
 
 
 def create_item_on_dynamodb():
@@ -119,13 +125,25 @@ def create_item_on_dynamodb():
         aws_access_key_id='foo', aws_secret_access_key='bar'
     )
 
+    sample_item = {
+        'id': uuid.uuid4().hex,
+        'username': f'test_username_{random.randint(0, 1000)}',
+        'gender': random.choice(['M', 'F', 'SECRET']),
+        'phone_number': f'+82101234{random.randint(0, 9999)}',
+        'created_at': datetime.datetime.utcnow().isoformat()
+    }
+
     dynamodb_client.put_item(
         TableName='local-user',
         Item={
-            'id': {'S': uuid.uuid4().hex},
-            'username': {'S': f'test_username_{random.randint(0, 1000)}'},
-            'gender': {'S': random.choice(['M', 'F', 'SECRET'])},
-            'phone_number': {'S': f'+82101234{random.randint(0, 9999)}'},
-            'created_at': {'S': datetime.datetime.utcnow().isoformat()}
+            'id': {'S': sample_item['id']},
+            'username': {'S': sample_item['username']},
+            'gender': {'S': sample_item['gender']},
+            'phone_number': {'S': sample_item['phone_number']},
+            'created_at': {'S': sample_item['created_at']}
         },
     )
+
+    print()
+    print('DynamoDB item has been put with: ')
+    pprint(sample_item)
