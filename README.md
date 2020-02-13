@@ -19,6 +19,9 @@ This will install of python packages which are necessary to run this snippet.
 
 > $ docker-compose up -d localstack
 
-2. After docker has been deployed, you can check if the
+2. After docker has been deployed, you can run this command to setup environment.
 
- 
+> $ python setup_env.py
+
+Then the script will run. You can check if PutItem operation on DynamoDB will index to ElasticSearch automatically.
+
